@@ -214,6 +214,7 @@ void ClassicComicsView::setModel(ComicModel *model)
             tableView->horizontalHeader()->showSection(ComicModel::ReadColumn);
             tableView->horizontalHeader()->showSection(ComicModel::CurrentPage);
             tableView->horizontalHeader()->showSection(ComicModel::PublicationDate);
+            tableView->horizontalHeader()->showSection(ComicModel::CreationDate);
             tableView->horizontalHeader()->showSection(ComicModel::Rating);
 
             tableView->horizontalHeader()->moveSection(ComicModel::CurrentPage, 3);

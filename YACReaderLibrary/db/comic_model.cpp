@@ -10,6 +10,8 @@
 #include "reading_list_model.h"
 #include "yacreader_global_gui.h"
 
+#include <QDir>
+#include <QFileInfo>
 #include <QSqlRecord>
 #include <QStringBuilder>
 #include <QtDebug>
@@ -391,6 +393,11 @@ QVariant ComicModel::data(const QModelIndex &index, int role) const
         return QVariant(localizedDate(item->data(PublicationDate).toString()));
     }
 
+    if (index.column() == ComicModel::CreationDate) {
+        const QDateTime created = item->data(ComicModel::CreationDate).toDateTime();
+        return created.isValid() ? QVariant(created.toString(QStringLiteral("yyyy-MM-dd HH:mm"))) : QVariant(QStringLiteral("-"));
+    }
+
     return item->data(index.column());
 }
 
@@ -432,6 +439,8 @@ QVariant ComicModel::headerData(int section, Qt::Orientation orientation,
             return QVariant(QString(tr("Volume")));
         case ComicModel::StoryArc:
             return QVariant(QString(tr("Story Arc")));
+        case ComicModel::CreationDate:
+            return QVariant(QString(tr("Creation Date")));
         }
     }
 
@@ -480,6 +489,44 @@ QVariant ComicModel::headerData(int section, Qt::Orientation orientation,
     }
 
     return QVariant();
+}
+
+void ComicModel::sort(int column, Qt::SortOrder order)
+{
+    if (column < 0 || column >= columnCount())
+        return;
+
+    QHash<qulonglong, int> oldRows;
+    oldRows.reserve(_data.size());
+    for (int i = 0; i < _data.size(); ++i)
+        oldRows.insert(_data.at(i)->data(ComicModel::Id).toULongLong(), i);
+
+    const auto lessThan = [](const QVariant &a, const QVariant &b) {
+        const auto type = a.type();
+        if (type == QVariant::DateTime || type == QVariant::Date)
+            return a.toDateTime() < b.toDateTime();
+        if (type == QVariant::Bool)
+            return a.toBool() < b.toBool();
+        if (type == QVariant::Int || type == QVariant::UInt || type == QVariant::LongLong || type == QVariant::ULongLong || type == QVariant::Double)
+            return a.toDouble() < b.toDouble();
+        return naturalSortLessThanCI(a.toString(), b.toString());
+    };
+
+    std::stable_sort(_data.begin(), _data.end(), [column, order, &lessThan](const ComicItem *a, const ComicItem *b) {
+        if (order == Qt::AscendingOrder)
+            return lessThan(a->data(column), b->data(column));
+        return lessThan(b->data(column), a->data(column));
+    });
+
+    QList<int> newSorting;
+    newSorting.reserve(_data.size());
+    for (const auto *item : _data)
+        newSorting << oldRows.value(item->data(ComicModel::Id).toULongLong());
+
+    beginResetModel();
+    endResetModel();
+
+    emit resortedIndexes(newSorting);
 }
 
 QModelIndex ComicModel::index(int row, int column, const QModelIndex &parent)
@@ -861,6 +908,8 @@ QList<ComicItem *> ComicModel::createModelData(QSqlQuery &sqlquery) const
         for (int i = 0; i < numColumns; i++)
             data << sqlquery.value(i);
 
+        data << QVariant(); // placeholder for CreationDate, filled by fillCreationDates()
+
         modelData.append(new ComicItem(data));
     }
 
@@ -881,6 +930,8 @@ QList<ComicItem *> ComicModel::createModelDataForList(QSqlQuery &sqlquery) const
         for (int i = 0; i < numColumns; i++)
             data << sqlquery.value(i);
 
+        data << QVariant(); // placeholder for CreationDate, filled by fillCreationDates()
+
         modelData.append(new ComicItem(data));
     }
 
@@ -891,6 +942,21 @@ void ComicModel::takeData(const QList<ComicItem *> &data)
 {
     qDeleteAll(_data);
     _data = data;
+    fillCreationDates(_data);
+}
+
+void ComicModel::fillCreationDates(QList<ComicItem *> &data) const
+{
+    const QString libraryRoot = QString(_databasePath).remove("/.yacreaderlibrary");
+    for (auto *item : data) {
+        const QString relativePath = item->data(ComicModel::Path).toString();
+        const QString fullPath = QDir::cleanPath(libraryRoot + "/" + relativePath);
+        const QFileInfo fi(fullPath);
+        QDateTime created = fi.birthTime();
+        if (!created.isValid())
+            created = fi.lastModified();
+        item->setData(ComicModel::CreationDate, created);
+    }
 }
 
 void ComicModel::takeUpdatedData(const QList<ComicItem *> &updatedData, std::function<bool(ComicItem *, ComicItem *)> comparator)
@@ -968,6 +1034,9 @@ void ComicModel::takeUpdatedData(const QList<ComicItem *> &updatedData, std::fun
 
         endRemoveRows();
     }
+
+    // creation dates are not stored in the DB, recompute them after any update
+    fillCreationDates(_data);
 }
 
 ComicDB ComicModel::getComic(const QModelIndex &mi)

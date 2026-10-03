@@ -42,10 +42,11 @@ public:
         Series,
         Volume,
         StoryArc,
+        CreationDate,
     };
 
     enum CalculatedColumns {
-        Size = Columns::StoryArc + 1,
+        Size = Columns::CreationDate + 1,
     };
 
     enum Roles {
@@ -98,6 +99,7 @@ public:
     QModelIndex parent(const QModelIndex &index) const override;
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     int columnCount(const QModelIndex &parent = QModelIndex()) const override;
+    void sort(int column, Qt::SortOrder order = Qt::AscendingOrder) override;
     bool canDropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column, const QModelIndex &parent) const override;
     bool dropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column, const QModelIndex &parent) override;
     bool canBeResorted();
@@ -189,6 +191,7 @@ private:
     QList<ComicItem *> createRecentlyAddedModelData(const QString &databasePath) const;
 
     void takeData(const QList<ComicItem *> &data);
+    void fillCreationDates(QList<ComicItem *> &data) const;
     void takeUpdatedData(const QList<ComicItem *> &updatedData, std::function<bool(ComicItem *, ComicItem *)> comparator);
     ComicDB _getComic(const QModelIndex &mi);
     QList<ComicItem *> _data;

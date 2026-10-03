@@ -27,7 +27,8 @@ YACReaderTableView::YACReaderTableView(QWidget *parent)
 
     // comicView->horizontalHeader()->setResizeMode(QHeaderView::ResizeToContents);
     horizontalHeader()->setStretchLastSection(true);
-    horizontalHeader()->setSectionsClickable(false);
+    horizontalHeader()->setSectionsClickable(true);
+    horizontalHeader()->setSortIndicatorShown(true);
     // comicView->verticalHeader()->setResizeMode(QHeaderView::ResizeToContents);
     verticalHeader()->setDefaultSectionSize(24);
     verticalHeader()->setSectionsClickable(false); // TODO comportamiento anómalo
@@ -36,6 +37,7 @@ YACReaderTableView::YACReaderTableView(QWidget *parent)
 
     setSelectionBehavior(QAbstractItemView::SelectRows);
     setSelectionMode(QAbstractItemView::ExtendedSelection);
+    setSortingEnabled(true);
 
     setItemDelegateForColumn(ComicModel::Rating, new YACReaderRatingDelegate(this));
     setEditTriggers(QAbstractItemView::NoEditTriggers);

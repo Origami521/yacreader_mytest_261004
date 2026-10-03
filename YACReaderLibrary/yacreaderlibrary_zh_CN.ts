@@ -397,6 +397,11 @@
         <source>Publication Date</source>
         <translation>出版日期</translation>
     </message>
+    <message>
+        <location filename="db/comic_model.cpp" line="443"/>
+        <source>Creation Date</source>
+        <translation>创建日期</translation>
+    </message>
 </context>
 <context>
     <name>ComicVineDialog</name>
