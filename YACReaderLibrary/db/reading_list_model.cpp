@@ -201,6 +201,9 @@ bool ReadingListModel::canDropMimeData(const QMimeData *data, Qt::DropAction act
         if (row == 2) // recent is just a smart list
             return false;
 
+        if (row == 3) // recently added (this week) is just a smart list
+            return false;
+
         if (rowIsSeparator(row, parent))
             return false;
     }
@@ -624,6 +627,7 @@ QList<SpecialListItem *> ReadingListModel::setupSpecialLists(QSqlDatabase &db)
 
     list.insert(1, new SpecialListItem(QList<QVariant>() << "Reading" << 0));
     list.insert(2, new SpecialListItem(QList<QVariant>() << "Recent" << 2));
+    list.insert(3, new SpecialListItem(QList<QVariant>() << tr("Recently added (this week)") << 3));
 
     return list;
 }

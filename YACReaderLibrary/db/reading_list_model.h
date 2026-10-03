@@ -73,6 +73,7 @@ public:
         Reading = 0,
         Favorites,
         Recent,
+        RecentlyAdded,
     };
 
 signals:

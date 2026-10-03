@@ -43,7 +43,7 @@ QString pixmapDataUrl(const QPixmap &pixmap)
 } // namespace
 
 GridComicsView::GridComicsView(QWidget *parent)
-    : ComicsView(parent), toolbar(nullptr), coverSizeSliderWidget(nullptr), coverSizeSlider(nullptr), coverSizeSliderAction(nullptr), showInfoSeparatorAction(nullptr), startSeparatorAction(nullptr), filterEnabled(false), contentModel(new GridContentModel(this)), viewStateTimer(new QTimer(this)), smallZoomLabel(nullptr), bigZoomLabel(nullptr)
+    : ComicsView(parent), toolbar(nullptr), coverSizeSliderWidget(nullptr), coverSizeSlider(nullptr), coverSizeSliderAction(nullptr), showInfoSeparatorAction(nullptr), startSeparatorAction(nullptr), sortByDateAction(nullptr), filterEnabled(false), contentModel(new GridContentModel(this)), viewStateTimer(new QTimer(this)), smallZoomLabel(nullptr), bigZoomLabel(nullptr)
 {
     qmlRegisterUncreatableType<GridContentModel>("com.yacreader.GridContentModel", 1, 0, "GridContentModel", QStringLiteral("GridContentModel is provided by GridComicsView"));
 
@@ -116,6 +116,15 @@ GridComicsView::GridComicsView(QWidget *parent)
     showInfoAction->setCheckable(true);
     showInfoAction->setChecked(showInfo);
     connect(showInfoAction, &QAction::toggled, this, &GridComicsView::updateInfoPanelVisibility);
+
+    sortByDateAction = new QAction(tr("Sort by creation date"), this);
+    sortByDateAction->setCheckable(true);
+    sortByDateAction->setChecked(settings->value(COMICS_GRID_SORT_BY_DATE, false).toBool());
+    contentModel->setSortByDate(sortByDateAction->isChecked());
+    connect(sortByDateAction, &QAction::toggled, this, [this](bool enabled) {
+        contentModel->setSortByDate(enabled);
+        settings->setValue(COMICS_GRID_SORT_BY_DATE, enabled);
+    });
 
     updateCoversSizeInContext(YACREADER_MIN_COVER_WIDTH, ctxt);
 
@@ -207,6 +216,8 @@ void GridComicsView::setToolBar(QToolBar *toolBar)
         toolbar->addAction(startSeparatorAction);
     if (!actions.contains(showInfoAction))
         toolbar->addAction(showInfoAction);
+    if (!actions.contains(sortByDateAction))
+        toolbar->addAction(sortByDateAction);
     if (!actions.contains(showInfoSeparatorAction))
         toolbar->addAction(showInfoSeparatorAction);
     if (!actions.contains(coverSizeSliderAction))
@@ -220,6 +231,7 @@ void GridComicsView::releaseToolBar()
 
     toolbar->removeAction(startSeparatorAction);
     toolbar->removeAction(showInfoAction);
+    toolbar->removeAction(sortByDateAction);
     toolbar->removeAction(showInfoSeparatorAction);
     toolbar->removeAction(coverSizeSliderAction);
 }
@@ -542,6 +554,10 @@ void GridComicsView::setCurrentList(const QModelIndex &listIndex)
             kind = QStringLiteral("recent");
             recentDays = settings->value(NUM_DAYS_TO_CONSIDER_RECENT, 1).toInt();
             break;
+        case ReadingListModel::TypeSpecialList::RecentlyAdded:
+            kind = QStringLiteral("recentlyAdded");
+            recentDays = 7;
+            break;
         }
         break;
     }
@@ -581,6 +597,8 @@ void GridComicsView::updateCurrentListIcon()
     else if (kind == QStringLiteral("reading"))
         icon = theme.emptyContainer.emptyCurrentReadingsIcon;
     else if (kind == QStringLiteral("recent"))
+        icon = theme.emptyContainer.emptyRecentIcon;
+    else if (kind == QStringLiteral("recentlyAdded"))
         icon = theme.emptyContainer.emptyRecentIcon;
     else if (kind == QStringLiteral("tag"))
         icon = theme.emptyContainer.emptyLabelIcons.value(currentLocationInfo.value(QStringLiteral("labelColor")).toInt());
@@ -1168,7 +1186,7 @@ void GridComicsView::applyTheme(const Theme &theme)
     }
 
     const auto locationKind = currentLocationInfo.value(QStringLiteral("kind")).toString();
-    if (locationKind == QStringLiteral("favorites") || locationKind == QStringLiteral("reading") || locationKind == QStringLiteral("recent") || locationKind == QStringLiteral("tag") || locationKind == QStringLiteral("readingList")) {
+    if (locationKind == QStringLiteral("favorites") || locationKind == QStringLiteral("reading") || locationKind == QStringLiteral("recent") || locationKind == QStringLiteral("recentlyAdded") || locationKind == QStringLiteral("tag") || locationKind == QStringLiteral("readingList")) {
         updateCurrentListIcon();
         emit currentLocationInfoChanged();
     }

@@ -27,6 +27,13 @@ void EmptySpecialListWidget::showRecent()
     setText(tr("There are no recent comics!"));
 }
 
+void EmptySpecialListWidget::showRecentlyAdded()
+{
+    currentType = RecentlyAdded;
+    setPixmap(theme.emptyContainer.emptyRecentIcon);
+    setText(tr("No comics have been added in the last week!"));
+}
+
 void EmptySpecialListWidget::applyTheme(const Theme &theme)
 {
     EmptyContainerInfo::applyTheme(theme);
@@ -43,6 +50,9 @@ void EmptySpecialListWidget::updateIcon()
         setPixmap(theme.emptyContainer.emptyCurrentReadingsIcon);
         break;
     case Recent:
+        setPixmap(theme.emptyContainer.emptyRecentIcon);
+        break;
+    case RecentlyAdded:
         setPixmap(theme.emptyContainer.emptyRecentIcon);
         break;
     case None:

@@ -81,7 +81,8 @@ public:
         Recent,
         Label,
         ReadingList,
-        SearchResult
+        SearchResult,
+        RecentlyAdded
     };
 
 public:
@@ -109,6 +110,7 @@ public:
     void setupFavoritesModelData(const QString &databasePath);
     void setupReadingModelData(const QString &databasePath);
     void setupRecentModelData(const QString &databasePath);
+    void setupRecentlyAddedModelData(const QString &databasePath);
 
     // Métodos de conveniencia
     QStringList getPaths(const QString &_source);
@@ -184,6 +186,7 @@ private:
     QList<ComicItem *> createFavoritesModelData(const QString &databasePath) const;
     QList<ComicItem *> createReadingModelData(const QString &databasePath) const;
     QList<ComicItem *> createRecentModelData(const QString &databasePath) const;
+    QList<ComicItem *> createRecentlyAddedModelData(const QString &databasePath) const;
 
     void takeData(const QList<ComicItem *> &data);
     void takeUpdatedData(const QList<ComicItem *> &updatedData, std::function<bool(ComicItem *, ComicItem *)> comparator);

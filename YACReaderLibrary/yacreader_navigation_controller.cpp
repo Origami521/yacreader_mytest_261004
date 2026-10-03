@@ -141,6 +141,9 @@ void YACReaderNavigationController::loadSpecialListContent(const QModelIndex &li
     case ReadingListModel::TypeSpecialList::Recent:
         libraryWindow->comicsModel->setupRecentModelData(libraryWindow->foldersModel->getDatabase());
         break;
+    case ReadingListModel::TypeSpecialList::RecentlyAdded:
+        libraryWindow->comicsModel->setupRecentlyAddedModelData(libraryWindow->foldersModel->getDatabase());
+        break;
     }
 
     contentViewsManager->comicsView->setModel(libraryWindow->comicsModel);

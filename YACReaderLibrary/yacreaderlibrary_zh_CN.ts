@@ -606,6 +606,11 @@
         <source>There are no recent comics!</source>
         <translation>没有最近的漫画！</translation>
     </message>
+    <message>
+        <location filename="empty_special_list.cpp" line="34"/>
+        <source>No comics have been added in the last week!</source>
+        <translation>近一周没有新添加的漫画！</translation>
+    </message>
 </context>
 <context>
     <name>ExportComicsInfoDialog</name>
@@ -795,6 +800,11 @@
         <location filename="grid_comics_view.cpp" line="115"/>
         <source>Show info</source>
         <translation>显示信息</translation>
+    </message>
+    <message>
+        <location filename="grid_comics_view.cpp" line="120"/>
+        <source>Sort by creation date</source>
+        <translation>按创建日期排序</translation>
     </message>
     <message>
         <source>Library</source>
@@ -3460,6 +3470,14 @@ To stop an automatic update tap on the loading indicator next to the Libraries t
         <location filename="../custom_widgets/yacreader_sidebar.cpp" line="151"/>
         <source>Reading Lists</source>
         <translation>阅读列表</translation>
+    </message>
+</context>
+<context>
+    <name>ReadingListModel</name>
+    <message>
+        <location filename="db/reading_list_model.cpp" line="630"/>
+        <source>Recently added (this week)</source>
+        <translation>近一周新添加漫画</translation>
     </message>
 </context>
 <context>

@@ -4,6 +4,7 @@
 #include <QAbstractListModel>
 #include <QPersistentModelIndex>
 #include <QUrl>
+#include <QVector>
 
 class ComicModel;
 class FolderModel;
@@ -53,6 +54,7 @@ public:
     void clearFolderModel();
     void setMixFoldersAndComics(bool enabled);
     void setStartComicsOnNewRow(bool enabled);
+    void setSortByDate(bool enabled);
     void setGridColumnCount(int columns);
 
     bool isFolderRow(int viewRow) const;
@@ -69,6 +71,7 @@ public:
 private:
     void reconnectModels();
     void resetFromSource();
+    void rebuildSortedOrder();
     int sourceFolderCount() const;
     int spacerCount() const;
     bool forwardsFolderRowsDirectly() const;
@@ -80,8 +83,16 @@ private:
     bool selectedFolderIsRoot = false;
     bool mixFoldersAndComics = true;
     bool startComicsOnNewRow = false;
+    bool sortByDate = false;
     int gridColumnCount = 1;
     QList<QMetaObject::Connection> sourceConnections;
+
+    // Sorting by date (creation date) caches. When `sortByDate` is false these are
+    // left empty and the identity mapping is used.
+    QVector<int> sortedFolderRows; // view row -> source folder row
+    QVector<int> sortedComicRows; // view row (within the comics section) -> source comic row
+    QVector<int> folderSourceToViewRow; // source folder row -> view row
+    QVector<int> comicSourceToViewRow; // source comic row -> view row (within the comics section)
 };
 
 #endif // GRID_CONTENT_MODEL_H

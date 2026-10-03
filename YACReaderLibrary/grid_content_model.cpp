@@ -3,6 +3,7 @@
 #include "comic_model.h"
 #include "folder_model.h"
 
+#include <algorithm>
 #include <utility>
 
 GridContentModel::GridContentModel(QObject *parent)
@@ -137,6 +138,7 @@ void GridContentModel::setComicModel(ComicModel *model)
 
     beginResetModel();
     comicModel = model;
+    rebuildSortedOrder();
     endResetModel();
     reconnectModels();
 }
@@ -147,6 +149,7 @@ void GridContentModel::setFolderModel(FolderModel *model, const QModelIndex &fol
     folderModel = model;
     selectedFolderIndex = folderIndex;
     selectedFolderIsRoot = model && !folderIndex.isValid();
+    rebuildSortedOrder();
     endResetModel();
     reconnectModels();
 }
@@ -174,6 +177,15 @@ void GridContentModel::setStartComicsOnNewRow(bool enabled)
     beginResetModel();
     startComicsOnNewRow = enabled;
     endResetModel();
+}
+
+void GridContentModel::setSortByDate(bool enabled)
+{
+    if (sortByDate == enabled)
+        return;
+
+    sortByDate = enabled;
+    resetFromSource();
 }
 
 void GridContentModel::setGridColumnCount(int columns)
@@ -208,12 +220,20 @@ int GridContentModel::visibleFolderCount() const
 
 int GridContentModel::sourceComicRow(int viewRow) const
 {
-    return viewRow - visibleFolderCount() - spacerCount();
+    const auto sourceRow = viewRow - visibleFolderCount() - spacerCount();
+    if (sortByDate && sourceRow >= 0 && sourceRow < sortedComicRows.size())
+        return sortedComicRows.at(sourceRow);
+    return sourceRow;
 }
 
 int GridContentModel::viewRowForComicRow(int sourceRow) const
 {
-    return sourceRow < 0 ? -1 : visibleFolderCount() + spacerCount() + sourceRow;
+    if (sourceRow < 0)
+        return -1;
+    const auto base = visibleFolderCount() + spacerCount();
+    if (sortByDate && sourceRow < comicSourceToViewRow.size())
+        return base + comicSourceToViewRow.at(sourceRow);
+    return base + sourceRow;
 }
 
 int GridContentModel::viewRowForComicId(qulonglong id) const
@@ -239,7 +259,8 @@ QModelIndex GridContentModel::sourceFolderIndex(int viewRow) const
     if (!folderModel || !isFolderRow(viewRow))
         return { };
     const QModelIndex parent = selectedFolderIsRoot ? QModelIndex() : QModelIndex(selectedFolderIndex);
-    return folderModel->index(viewRow, 0, parent);
+    const auto sourceRow = sortByDate && viewRow < sortedFolderRows.size() ? sortedFolderRows.at(viewRow) : viewRow;
+    return folderModel->index(sourceRow, 0, parent);
 }
 
 Folder GridContentModel::folderAt(int viewRow) const
@@ -288,8 +309,15 @@ void GridContentModel::reconnectModels()
                 resetFromSource();
         });
         sourceConnections << connect(folderModel, &QAbstractItemModel::dataChanged, this, [this](const QModelIndex &topLeft, const QModelIndex &bottomRight) {
-            if (visibleFolderCount() > 0 && topLeft.parent() == selectedFolderIndex && bottomRight.parent() == selectedFolderIndex)
-                emit dataChanged(index(topLeft.row()), index(bottomRight.row()));
+            if (visibleFolderCount() > 0 && topLeft.parent() == selectedFolderIndex && bottomRight.parent() == selectedFolderIndex) {
+                const auto firstSourceRow = topLeft.row();
+                const auto lastSourceRow = bottomRight.row();
+                const auto firstViewRow = sortByDate && firstSourceRow < folderSourceToViewRow.size() ? folderSourceToViewRow.at(firstSourceRow) : firstSourceRow;
+                const auto lastViewRow = sortByDate && lastSourceRow < folderSourceToViewRow.size() ? folderSourceToViewRow.at(lastSourceRow) : lastSourceRow;
+                if (firstViewRow < 0 || lastViewRow < 0)
+                    return;
+                emit dataChanged(index(qMin(firstViewRow, lastViewRow)), index(qMax(firstViewRow, lastViewRow)));
+            }
         });
     }
 
@@ -353,8 +381,62 @@ void GridContentModel::reconnectModels()
 
 void GridContentModel::resetFromSource()
 {
+    rebuildSortedOrder();
     beginResetModel();
     endResetModel();
+}
+
+void GridContentModel::rebuildSortedOrder()
+{
+    sortedFolderRows.clear();
+    sortedComicRows.clear();
+    folderSourceToViewRow.clear();
+    comicSourceToViewRow.clear();
+
+    if (!sortByDate)
+        return;
+
+    const QModelIndex folderParent = selectedFolderIsRoot ? QModelIndex() : QModelIndex(selectedFolderIndex);
+
+    if (folderModel) {
+        const auto folders = sourceFolderCount();
+        QVector<std::pair<qulonglong, int>> datedFolders;
+        datedFolders.reserve(folders);
+        for (auto i = 0; i < folders; ++i) {
+            const auto date = folderModel->index(i, 0, folderParent).data(FolderModel::AddedRole).toULongLong();
+            datedFolders.append({ date, i });
+        }
+        std::stable_sort(datedFolders.begin(), datedFolders.end(), [](const auto &a, const auto &b) {
+            return a.first > b.first; // newest first
+        });
+        folderSourceToViewRow.fill(-1, folders);
+        sortedFolderRows.reserve(folders);
+        auto viewRow = 0;
+        for (const auto &entry : std::as_const(datedFolders)) {
+            sortedFolderRows.append(entry.second);
+            folderSourceToViewRow[entry.second] = viewRow++;
+        }
+    }
+
+    if (comicModel) {
+        const auto comics = comicModel->rowCount();
+        QVector<std::pair<qulonglong, int>> datedComics;
+        datedComics.reserve(comics);
+        for (auto i = 0; i < comics; ++i) {
+            const auto date = comicModel->index(i, 0).data(ComicModel::AddedRole).toULongLong();
+            datedComics.append({ date, i });
+        }
+        std::stable_sort(datedComics.begin(), datedComics.end(), [](const auto &a, const auto &b) {
+            return a.first > b.first; // newest first
+        });
+        comicSourceToViewRow.fill(-1, comics);
+        sortedComicRows.reserve(comics);
+        auto viewRow = 0;
+        for (const auto &entry : std::as_const(datedComics)) {
+            sortedComicRows.append(entry.second);
+            comicSourceToViewRow[entry.second] = viewRow++;
+        }
+    }
 }
 
 int GridContentModel::sourceFolderCount() const
@@ -378,11 +460,17 @@ int GridContentModel::spacerCount() const
 
 bool GridContentModel::forwardsFolderRowsDirectly() const
 {
+    if (sortByDate)
+        return false;
+
     const auto comics = comicModel ? comicModel->rowCount() : 0;
     return comics == 0 || (mixFoldersAndComics && !startComicsOnNewRow);
 }
 
 bool GridContentModel::forwardsComicRowsDirectly() const
 {
+    if (sortByDate)
+        return false;
+
     return mixFoldersAndComics && !startComicsOnNewRow;
 }

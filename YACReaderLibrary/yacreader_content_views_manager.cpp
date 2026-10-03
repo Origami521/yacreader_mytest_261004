@@ -207,6 +207,9 @@ void YACReaderContentViewsManager::showEmptySpecialList(ReadingListModel::TypeSp
     case ReadingListModel::TypeSpecialList::Recent:
         emptySpecialList->showRecent();
         break;
+    case ReadingListModel::TypeSpecialList::RecentlyAdded:
+        emptySpecialList->showRecentlyAdded();
+        break;
     }
 
     showStackWidget(emptySpecialList, true);

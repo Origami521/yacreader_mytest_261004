@@ -10,7 +10,8 @@ public:
         None,
         Favorites,
         Reading,
-        Recent
+        Recent,
+        RecentlyAdded
     };
 
     EmptySpecialListWidget(QWidget *parent = nullptr);
@@ -18,6 +19,7 @@ public:
     void showFavorites();
     void showReading();
     void showRecent();
+    void showRecentlyAdded();
 
 protected:
     void applyTheme(const Theme &theme) override;

@@ -167,6 +167,7 @@ private:
     QSlider *coverSizeSlider;
     QAction *coverSizeSliderAction;
     QAction *showInfoAction;
+    QAction *sortByDateAction;
     QAction *showInfoSeparatorAction;
     QAction *startSeparatorAction;
 

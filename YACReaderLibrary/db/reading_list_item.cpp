@@ -45,6 +45,8 @@ QIcon SpecialListItem::getIcon() const
             return icons.favoritesIcon;
         case 2:
             return icons.currentlyReadingIcon;
+        case 3:
+            return icons.currentlyReadingIcon; // RecentlyAdded (this week)
         default:
             break;
         }

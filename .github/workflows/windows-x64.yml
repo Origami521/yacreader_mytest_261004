@@ -1,0 +1,59 @@
+# Windows x64 自用构建（fork 内使用，不会通知上游仓库）
+# 触发：push 到任意分支，或手动 workflow_dispatch
+name: Build Windows x64
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  windows-x64:
+    name: Windows x64 (Qt6)
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.10'
+          architecture: 'x64'
+
+      - name: Install Qt and dependencies
+        shell: cmd
+        run: |
+          pip install -U pip
+          pip install aqtinstall
+          mkdir C:\Qt
+          python -m aqt install-qt windows desktop 6.9.3 win64_msvc2022_64 -O c:\Qt -m qt5compat qtmultimedia qtimageformats qtshadertools qtspeech || exit /b 1
+          dir C:\Qt\6.9.3\msvc2022_64\bin
+          curl.exe -L --retry 5 --retry-delay 5 --retry-all-errors "https://aka.ms/vs/17/release/vc_redist.x64.exe" -o "%GITHUB_WORKSPACE%\vc_redist.x64.exe"
+
+      - name: Build
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          set PATH=C:\Qt\6.9.3\msvc2022_64\bin;%PATH%
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DDECOMPRESSION_BACKEND=7zip -DPDF_BACKEND=pdfium -DBUILD_NUMBER="${{ github.run_number }}" -DCMAKE_PREFIX_PATH=C:\Qt\6.9.3\msvc2022_64
+          cmake --build build --parallel
+
+      - name: Run tests
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          set PATH=%GITHUB_WORKSPACE%\dependencies\pdfium\win\x64;C:\Qt\6.9.3\msvc2022_64\bin;%PATH%
+          ctest --test-dir build --output-on-failure
+
+      - name: Create installer
+        shell: cmd
+        working-directory: ci/win
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          set PATH=C:\Qt\6.9.3\msvc2022_64\bin;%PATH%
+          .\create_installer.cmd x64 7z ${{ github.run_number }}
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v6
+        with:
+          name: YACReader-windows-x64
+          path: ci/win/Output/YACReader*.exe

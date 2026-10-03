@@ -191,6 +191,7 @@ bool ComicModel::dropMimeData(const QMimeData *data, Qt::DropAction action, int 
         case Folder:
         case Reading:
         case Recent:
+        case RecentlyAdded:
         case SearchResult:
             break;
         }
@@ -778,6 +779,46 @@ void ComicModel::setupRecentModelData(const QString &databasePath)
     endResetModel();
 }
 
+QList<ComicItem *> ComicModel::createRecentlyAddedModelData(const QString &databasePath) const
+{
+    QList<ComicItem *> modelData;
+
+    QString connectionName = "";
+    {
+        QSqlDatabase db = DataBaseManagement::loadDatabase(databasePath);
+        QSqlQuery selectQuery(db);
+        selectQuery.prepare("SELECT " COMIC_MODEL_QUERY_FIELDS " "
+                            "FROM comic c INNER JOIN comic_info ci ON (c.comicInfoId = ci.id) "
+                            "WHERE ci.added > :limit "
+                            "ORDER BY ci.added DESC");
+        selectQuery.bindValue(":limit", QDateTime::currentDateTime().addDays(-7).toSecsSinceEpoch());
+        selectQuery.exec();
+
+        modelData = createModelDataForList(selectQuery);
+        connectionName = db.connectionName();
+    }
+    QSqlDatabase::removeDatabase(connectionName);
+
+    return modelData;
+}
+
+void ComicModel::setupRecentlyAddedModelData(const QString &databasePath)
+{
+    enableResorting = false;
+    mode = RecentlyAdded;
+    sourceId = -1;
+
+    beginResetModel();
+    qDeleteAll(_data);
+    _data.clear();
+
+    _databasePath = databasePath;
+
+    takeData(createRecentlyAddedModelData(databasePath));
+
+    endResetModel();
+}
+
 void ComicModel::setModelData(QList<ComicItem *> *data, const QString &databasePath)
 {
     enableResorting = false;
@@ -1181,6 +1222,11 @@ void ComicModel::reload()
             return c1->data(ComicModel::Added).toDateTime() > c2->data(ComicModel::Added).toDateTime();
         });
         break;
+    case RecentlyAdded:
+        takeUpdatedData(createRecentlyAddedModelData(_databasePath), [](const ComicItem *c1, const ComicItem *c2) {
+            return c1->data(ComicModel::Added).toDateTime() > c2->data(ComicModel::Added).toDateTime();
+        });
+        break;
     case Label:
         setupLabelModelData(sourceId, _databasePath); // TODO we need a comparator
         break;
@@ -1366,6 +1412,9 @@ void ComicModel::deleteComicsFromSpecialList(const QList<QModelIndex> &comicsLis
         break;
     case ReadingListModel::TypeSpecialList::Recent:
         // do nothing, recent is read only
+        break;
+    case ReadingListModel::TypeSpecialList::RecentlyAdded:
+        // do nothing, recently added is read only
         break;
     }
 }
