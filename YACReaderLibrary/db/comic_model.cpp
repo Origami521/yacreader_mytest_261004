@@ -501,21 +501,36 @@ void ComicModel::sort(int column, Qt::SortOrder order)
     for (int i = 0; i < _data.size(); ++i)
         oldRows.insert(_data.at(i)->data(ComicModel::Id).toULongLong(), i);
 
-    const auto lessThan = [](const QVariant &a, const QVariant &b) {
-        const auto type = a.type();
-        if (type == QVariant::DateTime || type == QVariant::Date)
-            return a.toDateTime() < b.toDateTime();
-        if (type == QVariant::Bool)
-            return a.toBool() < b.toBool();
-        if (type == QVariant::Int || type == QVariant::UInt || type == QVariant::LongLong || type == QVariant::ULongLong || type == QVariant::Double)
-            return a.toDouble() < b.toDouble();
-        return naturalSortLessThanCI(a.toString(), b.toString());
+    const auto compareValues = [column](const QVariant &a, const QVariant &b) -> int {
+        // Creation date is stored as a QDateTime in the item data.
+        if (column == ComicModel::CreationDate) {
+            const auto da = a.toDateTime();
+            const auto db = b.toDateTime();
+            if (da == db)
+                return 0;
+            return da < db ? -1 : 1;
+        }
+        // Try numeric comparison for numeric-looking columns.
+        bool okA = false;
+        bool okB = false;
+        const auto na = a.toDouble(&okA);
+        const auto nb = b.toDouble(&okB);
+        if (okA && okB) {
+            if (na == nb)
+                return 0;
+            return na < nb ? -1 : 1;
+        }
+        // Fall back to natural string comparison.
+        if (naturalSortLessThanCI(a.toString(), b.toString()))
+            return -1;
+        if (naturalSortLessThanCI(b.toString(), a.toString()))
+            return 1;
+        return 0;
     };
 
-    std::stable_sort(_data.begin(), _data.end(), [column, order, &lessThan](const ComicItem *a, const ComicItem *b) {
-        if (order == Qt::AscendingOrder)
-            return lessThan(a->data(column), b->data(column));
-        return lessThan(b->data(column), a->data(column));
+    std::stable_sort(_data.begin(), _data.end(), [column, order, &compareValues](const ComicItem *a, const ComicItem *b) {
+        const int cmp = compareValues(a->data(column), b->data(column));
+        return order == Qt::AscendingOrder ? cmp < 0 : cmp > 0;
     });
 
     QList<int> newSorting;
