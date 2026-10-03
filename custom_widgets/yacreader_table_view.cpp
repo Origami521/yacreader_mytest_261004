@@ -39,6 +39,20 @@ YACReaderTableView::YACReaderTableView(QWidget *parent)
     setSelectionMode(QAbstractItemView::ExtendedSelection);
     setSortingEnabled(true);
 
+    // The header state restored by the classic view can leave the sort indicator switched off,
+    // and QTableView only sorts when that indicator changes. Sort explicitly on a header click,
+    // after the header has updated the indicator, so clicking a column always sorts.
+    connect(horizontalHeader(), &QHeaderView::sectionClicked, this, [this](int) {
+        QMetaObject::invokeMethod(
+                this,
+                [this] {
+                    if (auto *currentModel = model())
+                        currentModel->sort(horizontalHeader()->sortIndicatorSection(),
+                                           horizontalHeader()->sortIndicatorOrder());
+                },
+                Qt::QueuedConnection);
+    });
+
     setItemDelegateForColumn(ComicModel::Rating, new YACReaderRatingDelegate(this));
     setEditTriggers(QAbstractItemView::NoEditTriggers);
 

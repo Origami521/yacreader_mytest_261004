@@ -232,6 +232,11 @@ void ClassicComicsView::setModel(ComicModel *model)
 
         tableView->horizontalHeader()->setDefaultAlignment(Qt::AlignLeft);
         tableView->horizontalHeader()->setSectionsMovable(true);
+        // restoreState() above restores header properties from the saved state, so the
+        // clickability and the sort indicator have to be re-applied after it, otherwise
+        // clicking a column header cannot sort the comics.
+        tableView->horizontalHeader()->setSectionsClickable(true);
+        tableView->horizontalHeader()->setSortIndicatorShown(true);
         tableView->horizontalHeader()->setStretchLastSection(true);
 
         for (int i = 0; i < tableView->horizontalHeader()->count() - 1; i++) {
